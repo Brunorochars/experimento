@@ -1,0 +1,151 @@
+Atue como revisor de código. Analise os requisitos e o código Python apresentados e identifique possíveis defeitos funcionais que possam produzir um comportamento diferente do especificado. Para cada problema encontrado, informe: (1) a localização aproximada; (2) a descrição do problema; (3) a justificativa baseada no código e nos requisitos; e (4) uma possível correção. Não presuma requisitos que não estejam declarados. Caso não encontre defeitos, informe isso explicitamente.
+
+=== REQUISITOS ===
+
+# Requisitos — Carrinho de compras (`carrinho.py`)
+
+Valores monetários em reais. O total é arredondado para 2 casas decimais.
+
+## Produto
+
+- **RC01** — Um produto tem código, nome, preço e estoque. O preço deve ser maior que zero e o estoque não pode ser negativo (`ValueError`).
+
+## Carrinho
+
+- **RC02** — O carrinho é criado a partir de uma lista de produtos (catálogo) e começa vazio e sem cupom.
+- **RC03** — `adicionar(codigo, quantidade=1)`: o código deve existir no catálogo (`ProdutoInexistenteError`). A quantidade deve ser um inteiro (`TypeError`; booleanos não são aceitos) maior ou igual a 1 (`ValueError`). Adicionar um produto que já está no carrinho soma as quantidades.
+- **RC04** — A quantidade **total** de um produto no carrinho (a que já estava mais a nova) não pode ser maior que o estoque do produto. Caso seja, lança `EstoqueInsuficienteError` e o carrinho não é alterado.
+- **RC05** — `remover(codigo, quantidade=None)`: o produto deve estar no carrinho (`ProdutoInexistenteError`). Sem quantidade, remove o item inteiro. Com quantidade, ela deve estar entre 1 e a quantidade no carrinho (`ValueError`). Se a quantidade restante for zero, o item sai do carrinho.
+- **RC06** — `itens()` retorna uma cópia do dicionário `{codigo: quantidade}`.
+- **RC07** — `subtotal()` é a soma de `preço × quantidade` de todos os itens.
+- **RC08** — Desconto progressivo sobre o subtotal: 10% se o subtotal for maior ou igual a R$ 500,00; 5% se for maior ou igual a R$ 200,00 e menor que R$ 500,00; 0% abaixo de R$ 200,00. `percentual_desconto()` retorna 10, 5 ou 0.
+- **RC09** — `aplicar_cupom(codigo)`: o código é aceito sem diferenciar maiúsculas e minúsculas e ignorando espaços nas extremidades. Cupons válidos: `DESC20` e `FRETEGRATIS`. Código inválido lança `CupomInvalidoError`. Só um cupom vale por vez; aplicar outro substitui o anterior.
+- **RC10** — Cupom `DESC20`: abate R$ 20,00 do valor **depois** de aplicado o desconto progressivo, desde que o subtotal seja de pelo menos R$ 100,00. Abaixo disso, o cupom não tem efeito.
+- **RC11** — Frete: R$ 25,00, exceto quando o valor após os descontos (progressivo e cupom) for maior ou igual a R$ 300,00 ou quando o cupom `FRETEGRATIS` estiver aplicado; nesses casos o frete é zero.
+- **RC12** — `total()` = subtotal − desconto progressivo − desconto do cupom + frete. O valor antes do frete nunca é negativo. Carrinho vazio tem total 0.
+- **RC13** — `finalizar()`: carrinho vazio lança `CarrinhoVazioError`. Caso contrário, calcula o total, reduz o estoque de cada produto pela quantidade comprada, esvazia o carrinho, remove o cupom e retorna o total.
+
+=== CÓDIGO (carrinho.py) ===
+
+```python
+"""Carrinho de compras."""
+
+
+class ProdutoInexistenteError(Exception):
+    pass
+
+
+class EstoqueInsuficienteError(Exception):
+    pass
+
+
+class CupomInvalidoError(Exception):
+    pass
+
+
+class CarrinhoVazioError(Exception):
+    pass
+
+
+FRETE_PADRAO = 25.00
+VALOR_FRETE_GRATIS = 300.00
+CUPONS_VALIDOS = {"DESC20", "FRETEGRATIS"}
+VALOR_CUPOM_DESC20 = 20.00
+VALOR_MINIMO_DESC20 = 100.00
+
+
+class Produto:
+    def __init__(self, codigo, nome, preco, estoque):
+        if preco <= 0:
+            raise ValueError("preço deve ser positivo")
+        if estoque < 0:
+            raise ValueError("estoque não pode ser negativo")
+        self.codigo = codigo
+        self.nome = nome
+        self.preco = preco
+        self.estoque = estoque
+
+
+class Carrinho:
+    def __init__(self, catalogo):
+        self._catalogo = {p.codigo: p for p in catalogo}
+        self._itens = {}
+        self._cupom = None
+
+    def _produto(self, codigo):
+        if codigo not in self._catalogo:
+            raise ProdutoInexistenteError(f"produto {codigo} não existe")
+        return self._catalogo[codigo]
+
+    def adicionar(self, codigo, quantidade=1):
+        produto = self._produto(codigo)
+        if isinstance(quantidade, bool) or not isinstance(quantidade, int):
+            raise TypeError("quantidade deve ser inteira")
+        if quantidade < 1:
+            raise ValueError("quantidade inválida")
+        atual = self._itens.get(codigo, 0)
+        if atual + quantidade > produto.estoque:
+            raise EstoqueInsuficienteError(f"estoque insuficiente para {codigo}")
+        self._itens[codigo] = atual + quantidade
+
+    def remover(self, codigo, quantidade=None):
+        if codigo not in self._itens:
+            raise ProdutoInexistenteError(f"produto {codigo} não está no carrinho")
+        if quantidade is None:
+            quantidade = self._itens[codigo]
+        if quantidade < 1 or quantidade > self._itens[codigo]:
+            raise ValueError("quantidade inválida")
+        restante = self._itens[codigo] - quantidade
+        if restante == 0:
+            del self._itens[codigo]
+        else:
+            self._itens[codigo] = restante
+
+    def itens(self):
+        return dict(self._itens)
+
+    def subtotal(self):
+        total = sum(self._catalogo[c].preco * q for c, q in self._itens.items())
+        return round(total, 2)
+
+    def percentual_desconto(self):
+        subtotal = self.subtotal()
+        if subtotal >= 500:
+            return 10
+        if subtotal >= 200:
+            return 5
+        return 0
+
+    def aplicar_cupom(self, codigo):
+        codigo = codigo.strip().upper()
+        if codigo not in CUPONS_VALIDOS:
+            raise CupomInvalidoError(f"cupom {codigo} inválido")
+        self._cupom = codigo
+
+    def _frete(self, valor_com_desconto):
+        if self._cupom == "FRETEGRATIS" or valor_com_desconto >= VALOR_FRETE_GRATIS:
+            return 0.0
+        return FRETE_PADRAO
+
+    def total(self):
+        subtotal = self.subtotal()
+        if not self._itens:
+            return 0.0
+        percentual = self.percentual_desconto()
+        desconto_cupom = 0.0
+        if self._cupom == "DESC20" and subtotal >= VALOR_MINIMO_DESC20:
+            desconto_cupom = VALOR_CUPOM_DESC20
+        valor = subtotal * (1 - percentual / 100) - desconto_cupom
+        valor = max(valor, 0.0)
+        return round(valor + self._frete(valor), 2)
+
+    def finalizar(self):
+        if not self._itens:
+            raise CarrinhoVazioError("carrinho vazio")
+        total = self.total()
+        for codigo, quantidade in self._itens.items():
+            self._catalogo[codigo].estoque -= quantidade
+        self._itens.clear()
+        self._cupom = None
+        return total
+```

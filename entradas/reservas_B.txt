@@ -1,0 +1,142 @@
+Atue como revisor de código. Analise os requisitos e o código Python apresentados e identifique possíveis defeitos funcionais que possam produzir um comportamento diferente do especificado. Para cada problema encontrado, informe: (1) a localização aproximada; (2) a descrição do problema; (3) a justificativa baseada no código e nos requisitos; e (4) uma possível correção. Não presuma requisitos que não estejam declarados. Caso não encontre defeitos, informe isso explicitamente.
+
+=== REQUISITOS ===
+
+# Requisitos — Sistema de reservas de salas (`reservas.py`)
+
+Horários são horas inteiras de 0 a 24. Uma reserva das 10 às 12 ocupa o intervalo [10, 12): começa às 10 e termina às 12.
+
+## Sistema
+
+- **RR01** — O sistema é criado com um dicionário `{nome_da_sala: capacidade}` e com a data de hoje. Toda capacidade deve ser maior ou igual a 1 (`ValueError`).
+- **RR02** — `reservar(sala, data, inicio, fim, participantes, responsavel)` cria uma reserva ativa e retorna seu identificador. Os identificadores são inteiros sequenciais começando em 1.
+- **RR03** — Validações da reserva (todas lançam `ReservaInvalidaError`):
+  - a sala deve existir;
+  - a data deve ser um `date` igual ou posterior à data de hoje do sistema;
+  - início e fim devem ser inteiros;
+  - o funcionamento é das 8h às 22h: o início não pode ser antes das 8 e o fim não pode ser depois das 22;
+  - o início deve ser anterior ao fim;
+  - a duração (fim − início) é de no máximo 4 horas;
+  - o número de participantes deve ser no mínimo 1 e **no máximo a capacidade da sala**;
+  - o responsável deve ser um texto não vazio (espaços nas extremidades são removidos ao salvar).
+- **RR04** — Duas reservas **ativas** da mesma sala, na mesma data, não podem ter intervalos sobrepostos; nesse caso lança `ConflitoDeHorarioError`. Reservas **encostadas** não se sobrepõem: se uma termina às 10, outra pode começar às 10.
+- **RR05** — `cancelar(id)`: id inexistente lança `ReservaInexistenteError`; reserva já cancelada lança `ReservaInvalidaError`. A reserva cancelada deixa de estar ativa e **libera o horário** para novas reservas.
+- **RR06** — `buscar(id)` retorna a reserva (ativa ou cancelada); id inexistente lança `ReservaInexistenteError`.
+- **RR07** — `listar(sala, data)` retorna as reservas ativas da sala na data, ordenadas pelo horário de início.
+- **RR08** — `horarios_livres(sala, data)` retorna a lista das horas de início de 8 a 21 que não estão ocupadas por reservas ativas. Sala inexistente lança `ReservaInvalidaError`.
+- **RR09** — `ocupacao(sala, data)` retorna o percentual de horas ocupadas no dia (das 14 horas de funcionamento), arredondado para 1 casa decimal.
+
+=== CÓDIGO (reservas.py) ===
+
+```python
+"""Sistema de reservas de salas."""
+
+from datetime import date
+
+
+class ReservaInvalidaError(Exception):
+    pass
+
+
+class ConflitoDeHorarioError(Exception):
+    pass
+
+
+class ReservaInexistenteError(Exception):
+    pass
+
+
+HORA_ABERTURA = 8
+HORA_FECHAMENTO = 22
+DURACAO_MAXIMA = 4
+
+
+class Reserva:
+    def __init__(self, id_reserva, sala, data, inicio, fim, participantes, responsavel):
+        self.id = id_reserva
+        self.sala = sala
+        self.data = data
+        self.inicio = inicio
+        self.fim = fim
+        self.participantes = participantes
+        self.responsavel = responsavel
+        self.ativa = True
+
+
+class SistemaReservas:
+    def __init__(self, salas, hoje):
+        for nome, capacidade in salas.items():
+            if capacidade < 1:
+                raise ValueError(f"capacidade inválida para {nome}")
+        self._salas = dict(salas)
+        self._hoje = hoje
+        self._reservas = {}
+        self._proximo_id = 1
+
+    def _validar(self, sala, data, inicio, fim, participantes, responsavel):
+        if sala not in self._salas:
+            raise ReservaInvalidaError(f"sala {sala} não existe")
+        if not isinstance(data, date) or data < self._hoje:
+            raise ReservaInvalidaError("data inválida")
+        if not all(isinstance(h, int) and not isinstance(h, bool) for h in (inicio, fim)):
+            raise ReservaInvalidaError("horários devem ser inteiros")
+        if inicio < HORA_ABERTURA or fim > HORA_FECHAMENTO:
+            raise ReservaInvalidaError("fora do horário de funcionamento")
+        if inicio >= fim:
+            raise ReservaInvalidaError("início deve ser anterior ao fim")
+        if fim - inicio > DURACAO_MAXIMA:
+            raise ReservaInvalidaError("duração máxima excedida")
+        if participantes < 1 or participantes > self._salas[sala]:
+            raise ReservaInvalidaError("número de participantes inválido")
+        if not isinstance(responsavel, str) or not responsavel.strip():
+            raise ReservaInvalidaError("responsável obrigatório")
+
+    def _conflita(self, sala, data, inicio, fim):
+        for r in self._reservas.values():
+            if r.ativa and r.sala == sala and r.data == data:
+                if inicio < r.fim and fim > r.inicio:
+                    return True
+        return False
+
+    def reservar(self, sala, data, inicio, fim, participantes, responsavel):
+        self._validar(sala, data, inicio, fim, participantes, responsavel)
+        if self._conflita(sala, data, inicio, fim):
+            raise ConflitoDeHorarioError("horário já reservado")
+        reserva = Reserva(self._proximo_id, sala, data, inicio, fim,
+                          participantes, responsavel.strip())
+        self._reservas[reserva.id] = reserva
+        self._proximo_id += 1
+        return reserva.id
+
+    def cancelar(self, id_reserva):
+        reserva = self._reservas.get(id_reserva)
+        if reserva is None:
+            raise ReservaInexistenteError(f"reserva {id_reserva} não existe")
+        if not reserva.ativa:
+            raise ReservaInvalidaError("reserva já cancelada")
+        reserva.ativa = False
+
+    def buscar(self, id_reserva):
+        reserva = self._reservas.get(id_reserva)
+        if reserva is None:
+            raise ReservaInexistenteError(f"reserva {id_reserva} não existe")
+        return reserva
+
+    def listar(self, sala, data):
+        ativas = [r for r in self._reservas.values()
+                  if r.ativa and r.sala == sala and r.data == data]
+        return sorted(ativas, key=lambda r: r.inicio)
+
+    def horarios_livres(self, sala, data):
+        if sala not in self._salas:
+            raise ReservaInvalidaError(f"sala {sala} não existe")
+        ocupadas = set()
+        for r in self.listar(sala, data):
+            ocupadas.update(range(r.inicio, r.fim))
+        return [h for h in range(HORA_ABERTURA, HORA_FECHAMENTO) if h not in ocupadas]
+
+    def ocupacao(self, sala, data):
+        total = HORA_FECHAMENTO - HORA_ABERTURA
+        livres = len(self.horarios_livres(sala, data))
+        return round((total - livres) / total * 100, 1)
+```

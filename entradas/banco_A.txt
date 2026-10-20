@@ -1,0 +1,152 @@
+Atue como revisor de código. Analise os requisitos e o código Python apresentados e identifique possíveis defeitos funcionais que possam produzir um comportamento diferente do especificado. Para cada problema encontrado, informe: (1) a localização aproximada; (2) a descrição do problema; (3) a justificativa baseada no código e nos requisitos; e (4) uma possível correção. Não presuma requisitos que não estejam declarados. Caso não encontre defeitos, informe isso explicitamente.
+
+=== REQUISITOS ===
+
+# Requisitos — Controle bancário (`banco.py`)
+
+Valores monetários são números (`int` ou `float`) em reais. Todo saldo resultante de uma operação é arredondado para 2 casas decimais.
+
+## Conta
+
+- **RB01** — Uma conta é criada com titular, número e saldo inicial (padrão 0). O titular deve ser um texto não vazio (espaços nas extremidades são removidos); caso contrário, lança `ValueError`. O saldo inicial não pode ser negativo (`ValueError`).
+- **RB02** — `depositar(valor)`: o valor deve ser numérico (`TypeError` caso contrário; valores booleanos não são aceitos) e maior que zero (`ValueError`). O valor é somado ao saldo e a operação é registrada no extrato como `("deposito", valor)`.
+- **RB03** — `sacar(valor)`: o valor segue as mesmas regras de validação do depósito. O saque é permitido quando o valor é **menor ou igual** ao saldo disponível; a conta pode ficar com saldo exatamente zero. Se o valor for maior que o saldo, lança `SaldoInsuficienteError`.
+- **RB04** — Limite diário: a soma de todos os débitos do dia (saques **e transferências enviadas**) não pode ultrapassar R$ 1.000,00. É permitido atingir exatamente esse valor. Um débito que faria a soma ultrapassar o limite lança `LimiteDiarioError` e não altera a conta.
+- **RB05** — Um saque bem-sucedido reduz o saldo, soma o valor ao total debitado no dia e é registrado como `("saque", valor)`.
+- **RB06** — `transferir(destino, valor)`: o destino deve ser uma `Conta` (`TypeError`) diferente da conta de origem (`ValueError`). A origem segue as mesmas regras do saque (RB03 e RB04). Em caso de sucesso, o valor sai da origem, entra no destino, é somado ao total debitado no dia da origem e é registrado no extrato da origem como `("transferencia_enviada", valor)` e no do destino como `("transferencia_recebida", valor)`. Se a transferência for recusada, nenhuma das contas é alterada.
+- **RB07** — `aplicar_rendimento(taxa_percentual)`: a taxa é um percentual entre 0 e 2, inclusive (`ValueError` fora desse intervalo; `TypeError` se não for numérica). O rendimento é `saldo × taxa_percentual / 100`, arredondado para 2 casas, e é somado ao saldo. Quando o rendimento é maior que zero, é registrado como `("rendimento", rendimento)`. O método retorna o rendimento.
+- **RB08** — `extrato()` retorna uma cópia da lista de operações, na ordem em que ocorreram.
+- **RB09** — `novo_dia()` zera o total debitado no dia.
+
+## Banco
+
+- **RB10** — `abrir_conta(titular, saldo_inicial)` cria uma conta com número sequencial, começando em 1001.
+- **RB11** — `buscar(numero)` retorna a conta; se não existir, lança `ContaInexistenteError`.
+- **RB12** — `transferir(numero_origem, numero_destino, valor)` localiza as duas contas e realiza a transferência conforme RB06.
+- **RB13** — `encerrar_dia()` aplica `novo_dia()` a todas as contas.
+- **RB14** — `saldo_total()` retorna a soma dos saldos de todas as contas, arredondada para 2 casas.
+
+=== CÓDIGO (banco.py) ===
+
+```python
+"""Controle de contas bancárias."""
+
+
+class SaldoInsuficienteError(Exception):
+    pass
+
+
+class LimiteDiarioError(Exception):
+    pass
+
+
+class ContaInexistenteError(Exception):
+    pass
+
+
+LIMITE_DIARIO_SAQUE = 1000.00
+TAXA_RENDIMENTO_MAXIMA = 2.0
+PRIMEIRO_NUMERO_CONTA = 1001
+
+
+class Conta:
+    def __init__(self, titular, numero, saldo_inicial=0.0):
+        if not isinstance(titular, str) or not titular.strip():
+            raise ValueError("titular inválido")
+        if saldo_inicial < 0:
+            raise ValueError("saldo inicial não pode ser negativo")
+        self.titular = titular.strip()
+        self.numero = numero
+        self._saldo = round(float(saldo_inicial), 2)
+        self._sacado_hoje = 0.0
+        self._extrato = []
+
+    @property
+    def saldo(self):
+        return self._saldo
+
+    @property
+    def sacado_hoje(self):
+        return self._sacado_hoje
+
+    def extrato(self):
+        return list(self._extrato)
+
+    def _validar_valor(self, valor):
+        if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+            raise TypeError("valor deve ser numérico")
+        if valor <= 0:
+            raise ValueError("valor deve ser positivo")
+
+    def _validar_debito(self, valor):
+        self._validar_valor(valor)
+        if valor >= self._saldo:
+            raise SaldoInsuficienteError("saldo insuficiente")
+        if self._sacado_hoje + valor > LIMITE_DIARIO_SAQUE:
+            raise LimiteDiarioError("limite diário excedido")
+
+    def depositar(self, valor):
+        self._validar_valor(valor)
+        self._saldo = round(self._saldo + valor, 2)
+        self._extrato.append(("deposito", valor))
+
+    def sacar(self, valor):
+        self._validar_debito(valor)
+        self._saldo = round(self._saldo - valor, 2)
+        self._sacado_hoje = round(self._sacado_hoje + valor, 2)
+        self._extrato.append(("saque", valor))
+
+    def transferir(self, destino, valor):
+        if not isinstance(destino, Conta):
+            raise TypeError("destino deve ser uma conta")
+        if destino is self:
+            raise ValueError("não é possível transferir para a mesma conta")
+        self._validar_debito(valor)
+        self._saldo = round(self._saldo - valor, 2)
+        destino._saldo = round(destino._saldo + valor, 2)
+        self._extrato.append(("transferencia_enviada", valor))
+        destino._extrato.append(("transferencia_recebida", valor))
+
+    def aplicar_rendimento(self, taxa_percentual):
+        if isinstance(taxa_percentual, bool) or not isinstance(taxa_percentual, (int, float)):
+            raise TypeError("taxa deve ser numérica")
+        if not 0 <= taxa_percentual <= TAXA_RENDIMENTO_MAXIMA:
+            raise ValueError("taxa fora do intervalo permitido")
+        rendimento = round(self._saldo * taxa_percentual / 10, 2)
+        self._saldo = round(self._saldo + rendimento, 2)
+        if rendimento > 0:
+            self._extrato.append(("rendimento", rendimento))
+        return rendimento
+
+    def novo_dia(self):
+        self._sacado_hoje = 0.0
+
+
+class Banco:
+    def __init__(self):
+        self._contas = {}
+        self._proximo_numero = PRIMEIRO_NUMERO_CONTA
+
+    def abrir_conta(self, titular, saldo_inicial=0.0):
+        conta = Conta(titular, self._proximo_numero, saldo_inicial)
+        self._contas[conta.numero] = conta
+        self._proximo_numero += 1
+        return conta
+
+    def buscar(self, numero):
+        if numero not in self._contas:
+            raise ContaInexistenteError(f"conta {numero} não encontrada")
+        return self._contas[numero]
+
+    def transferir(self, numero_origem, numero_destino, valor):
+        origem = self.buscar(numero_origem)
+        destino = self.buscar(numero_destino)
+        origem.transferir(destino, valor)
+
+    def encerrar_dia(self):
+        for conta in self._contas.values():
+            conta.novo_dia()
+
+    def saldo_total(self):
+        return round(sum(c.saldo for c in self._contas.values()), 2)
+```

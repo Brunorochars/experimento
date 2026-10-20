@@ -1,0 +1,143 @@
+Atue como revisor de código. Analise os requisitos e o código Python apresentados e identifique possíveis defeitos funcionais que possam produzir um comportamento diferente do especificado. Para cada problema encontrado, informe: (1) a localização aproximada; (2) a descrição do problema; (3) a justificativa baseada no código e nos requisitos; e (4) uma possível correção. Não presuma requisitos que não estejam declarados. Caso não encontre defeitos, informe isso explicitamente.
+
+=== REQUISITOS ===
+
+# Requisitos — Gerenciamento de notas (`notas.py`)
+
+## Alunos
+
+- **RN01** — `adicionar_aluno(matricula, nome)`: matrícula já cadastrada lança `AlunoDuplicadoError`; nome deve ser texto não vazio (`ValueError`; espaços nas extremidades são removidos).
+- **RN02** — Qualquer operação com matrícula não cadastrada lança `AlunoInexistenteError`.
+
+## Notas e frequência
+
+- **RN03** — `lancar_nota(matricula, avaliacao, nota)`: as avaliações são `P1`, `P2` e `T` (trabalho); outra avaliação lança `NotaInvalidaError`. A nota deve ser numérica (`TypeError`; booleanos não são aceitos) e estar entre 0 e 10, inclusive (`NotaInvalidaError` fora desse intervalo). Lançar novamente substitui a nota anterior.
+- **RN04** — `registrar_frequencia(matricula, percentual)`: percentual entre 0 e 100, inclusive (`ValueError` fora do intervalo).
+
+## Média e situação
+
+- **RN05** — `media(matricula)` é a média ponderada: **P1 com peso 35%, P2 com peso 35% e T com peso 30%**. Avaliação sem nota lançada conta como 0. O resultado é arredondado para 2 casas.
+- **RN06** — `situacao(matricula)`, avaliada nesta ordem:
+  1. sem frequência registrada → `"Pendente"`;
+  2. frequência **menor que 75%** → `"Reprovado por frequência"` (75% exatos não reprovam por frequência);
+  3. média ≥ 7,0 → `"Aprovado"`;
+  4. média < 5,0 → `"Reprovado"`;
+  5. média entre 5,0 (inclusive) e 7,0 sem nota de exame → `"Exame"`;
+  6. com nota de exame: média final ≥ 5,0 → `"Aprovado"`, senão `"Reprovado"`.
+- **RN07** — `lancar_exame(matricula, nota)`: só é permitido quando a situação do aluno é `"Exame"` (caso contrário, `ExameNaoPermitidoError`). A nota segue a mesma validação de RN03.
+- **RN08** — `media_final(matricula)`: sem exame, é igual à média; com exame, é `(média + exame) / 2`, arredondada para 2 casas.
+- **RN09** — `ranking()` retorna a lista de pares `(matricula, media)` de todos os alunos, em ordem decrescente de média; empates são ordenados pela matrícula em ordem crescente.
+
+=== CÓDIGO (notas.py) ===
+
+```python
+"""Gerenciamento de notas de uma turma."""
+
+
+class AlunoInexistenteError(Exception):
+    pass
+
+
+class AlunoDuplicadoError(Exception):
+    pass
+
+
+class NotaInvalidaError(Exception):
+    pass
+
+
+class ExameNaoPermitidoError(Exception):
+    pass
+
+
+PESOS = {"P1": 0.35, "P2": 0.35, "T": 0.30}
+MEDIA_APROVACAO = 7.0
+MEDIA_MINIMA_EXAME = 5.0
+MEDIA_FINAL_APROVACAO = 5.0
+FREQUENCIA_MINIMA = 75.0
+
+
+class Aluno:
+    def __init__(self, matricula, nome):
+        self.matricula = matricula
+        self.nome = nome
+        self.notas = {}
+        self.frequencia = None
+        self.exame = None
+
+
+class Turma:
+    def __init__(self):
+        self._alunos = {}
+
+    def adicionar_aluno(self, matricula, nome):
+        if matricula in self._alunos:
+            raise AlunoDuplicadoError(f"matrícula {matricula} já cadastrada")
+        if not isinstance(nome, str) or not nome.strip():
+            raise ValueError("nome inválido")
+        self._alunos[matricula] = Aluno(matricula, nome.strip())
+
+    def _aluno(self, matricula):
+        if matricula not in self._alunos:
+            raise AlunoInexistenteError(f"matrícula {matricula} não encontrada")
+        return self._alunos[matricula]
+
+    def _validar_nota(self, nota):
+        if isinstance(nota, bool) or not isinstance(nota, (int, float)):
+            raise TypeError("nota deve ser numérica")
+        if nota < 0 or nota > 10:
+            raise NotaInvalidaError("nota fora do intervalo")
+
+    def lancar_nota(self, matricula, avaliacao, nota):
+        aluno = self._aluno(matricula)
+        if avaliacao not in PESOS:
+            raise NotaInvalidaError(f"avaliação {avaliacao} inexistente")
+        self._validar_nota(nota)
+        aluno.notas[avaliacao] = float(nota)
+
+    def registrar_frequencia(self, matricula, percentual):
+        aluno = self._aluno(matricula)
+        if not 0 <= percentual <= 100:
+            raise ValueError("frequência fora do intervalo")
+        aluno.frequencia = float(percentual)
+
+    def media(self, matricula):
+        aluno = self._aluno(matricula)
+        soma = sum(aluno.notas.get(av, 0.0) * peso for av, peso in PESOS.items())
+        return round(soma, 2)
+
+    def situacao(self, matricula):
+        aluno = self._aluno(matricula)
+        if aluno.frequencia is None:
+            return "Pendente"
+        if aluno.frequencia < FREQUENCIA_MINIMA:
+            return "Reprovado por frequência"
+        media = self.media(matricula)
+        if media >= MEDIA_APROVACAO:
+            return "Aprovado"
+        if media < MEDIA_MINIMA_EXAME:
+            return "Reprovado"
+        if aluno.exame is None:
+            return "Exame"
+        if self.media_final(matricula) >= MEDIA_FINAL_APROVACAO:
+            return "Aprovado"
+        return "Reprovado"
+
+    def lancar_exame(self, matricula, nota):
+        aluno = self._aluno(matricula)
+        if self.situacao(matricula) != "Exame":
+            raise ExameNaoPermitidoError("aluno não está em exame")
+        self._validar_nota(nota)
+        aluno.exame = float(nota)
+
+    def media_final(self, matricula):
+        aluno = self._aluno(matricula)
+        media = self.media(matricula)
+        if aluno.exame is None:
+            return media
+        return round((media + aluno.exame) / 2, 2)
+
+    def ranking(self):
+        medias = [(m, self.media(m)) for m in self._alunos]
+        return sorted(medias, key=lambda item: (-item[1], item[0]))
+```
