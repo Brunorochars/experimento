@@ -12,7 +12,7 @@
 
 ## Média e situação
 
-- **RN05 — `media(matricula)` é a média ponderada: P1 com peso 35%, P2 com peso 35% e T com peso 30%**. Avaliação sem nota lançada conta como 0. O resultado é arredondado para 2 casas.
+- **RN05** — `media(matricula)` é a média ponderada: P1 com peso 35%, P2 com peso 35% e T com peso 30%. Avaliação sem nota lançada conta como 0. O resultado é arredondado para 2 casas.
 - **RN06** — `situacao(matricula)`, avaliada nesta ordem:
   1. sem frequência registrada → `"Pendente"`;
   2. frequência menor que 75% → `"Reprovado por frequência"` (75% exatos não reprovam por frequência);
