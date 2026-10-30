@@ -1,0 +1,25 @@
+id_resposta,data,hora,modelo,motivo_auto,modelos_chamados,premium_requests,caracteres
+R073,2026-10-30,15:47,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,501
+R074,2026-10-30,15:47,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1284
+R075,2026-10-30,15:48,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,918
+R076,2026-10-30,15:49,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1090
+R077,2026-10-30,15:49,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1202
+R078,2026-10-30,15:50,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,822
+R079,2026-10-30,15:50,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1362
+R080,2026-10-30,15:51,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1686
+R081,2026-10-30,15:52,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,488
+R082,2026-10-30,15:52,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,802
+R083,2026-10-30,15:53,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1775
+R084,2026-10-30,15:53,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1379
+R085,2026-10-30,15:54,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1105
+R086,2026-10-30,15:54,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1288
+R087,2026-10-30,15:55,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1066
+R088,2026-10-30,15:55,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,986
+R089,2026-10-30,15:56,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,846
+R090,2026-10-30,15:57,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,577
+R091,2026-10-30,15:57,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1206
+R092,2026-10-30,15:57,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1253
+R093,2026-10-30,15:58,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1553
+R094,2026-10-30,15:59,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,929
+R095,2026-10-30,15:59,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1101
+R096,2026-10-30,15:59,gpt-6-luna,Auto selected GPT-6 Luna because it was the best choice out of the models available in your plan.,gpt-6-luna,1,1005
